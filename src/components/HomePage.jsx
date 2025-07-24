@@ -21,8 +21,7 @@ export default function HomePage() {
     setMessage('');
     setAnalysisResult(null);
 
-    try {
-      const response = await fetch('http://localhost:8080/api/bills', {
+    try {const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bills`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -39,7 +38,7 @@ export default function HomePage() {
         amount: formData.totalAmount,
       }).toString();
 
-      const compareResponse = await fetch(`http://localhost:8080/api/compare?${queryParams}`);
+      const compareResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/compare?${queryParams}`);
       const compareResult = await compareResponse.json();
       if (!compareResponse.ok) throw new Error(compareResult.message || 'Comparison failed');
 
