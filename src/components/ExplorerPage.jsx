@@ -9,7 +9,7 @@ export default function ExplorerPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/bills');
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bills`);
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
