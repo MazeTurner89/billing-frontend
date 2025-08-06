@@ -1,123 +1,145 @@
 import { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer } from 'recharts';
+
+// Define the live API endpoints from your Render deployment
+const ADD_BILL_URL = 'https://billing-backend-MazeTurner89.onrender.com/api/bills';
+const COMPARE_URL = 'https://billing-backend-MazeTurner89.onrender.com/api/compare';
 
 export default function HomePage() {
-  const [formData, setFormData] = useState({
-    provider: '', city: '', area: '', unitsConsumed: '', totalAmount: '', billingCycle: '',
+  // State for the "Add Bill" form
+  const [newBill, setNewBill] = useState({
+    provider: '',
+    city: '',
+    totalAmount: '',
+    unitsConsumed: '',
+    dueDate: ''
   });
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleChange = (e) => {
-    setAnalysisResult(null);
-    setMessage('');
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // State for the "Compare Bill" form
+  const [comparisonData, setComparisonData] = useState({
+    provider: '',
+    city: '',
+    amount: '',
+    units: ''
+  });
+
+  // State for handling messages and loading for the "Add Bill" form
+  const [addBillMessage, setAddBillMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State for handling messages and results for the "Compare" form
+  const [comparisonResult, setComparisonResult] = useState(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const [compareMessage, setCompareMessage] = useState('');
+
+  // --- HANDLER FUNCTIONS ---
+
+  // Handles input changes for the "Add Bill" form
+  const handleNewBillChange = (e) => {
+    const { name, value } = e.target;
+    setNewBill(prevState => ({ ...prevState, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
-    setAnalysisResult(null);
+  // Handles input changes for the "Compare Bill" form
+  const handleComparisonChange = (e) => {
+    const { name, value } = e.target;
+    setComparisonData(prevState => ({ ...prevState, [name]: value }));
+  };
 
-    try {const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/bills`, {
+  // Handles submission of the "Add Bill" form
+  const handleAddBillSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setAddBillMessage('');
+    try {
+      const response = await fetch(ADD_BILL_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(newBill)
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Submission failed');
-      
-      setMessage(`Success! Your bill was saved. Analyzing...`);
-
-      const queryParams = new URLSearchParams({
-        provider: formData.provider,
-        city: formData.city,
-        units: formData.unitsConsumed,
-        amount: formData.totalAmount,
-      }).toString();
-
-      const compareResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/compare?${queryParams}`);
-      const compareResult = await compareResponse.json();
-      if (!compareResponse.ok) throw new Error(compareResult.message || 'Comparison failed');
-
-      setAnalysisResult(compareResult);
-      setMessage('');
-
-      setFormData({
-        provider: '', city: '', area: '', unitsConsumed: '', totalAmount: '', billingCycle: '',
-      });
-
-    } catch (error) {
-      setMessage(`Error: ${error.message}`);
-      setAnalysisResult(null);
+      if (!response.ok) {
+        throw new Error(result.message || 'Submission failed.');
+      }
+      setAddBillMessage('Success! Your bill was added to the dataset.');
+      setNewBill({ provider: '', city: '', totalAmount: '', unitsConsumed: '', dueDate: '' }); // Reset form
+    } catch (err) {
+      setAddBillMessage(`Error: ${err.message}`);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const chartData = analysisResult && analysisResult.comparison ? [
-    { name: 'Cost Per Unit', 'Your Bill': parseFloat(analysisResult.userCostPerUnit.toFixed(2)), 'Average Bill': parseFloat(analysisResult.comparison.averageCostPerUnit.toFixed(2)) }
-  ] : [];
+  // Handles submission of the "Compare Bill" form
+  const handleCompareSubmit = async (e) => {
+    e.preventDefault();
+    setIsComparing(true);
+    setCompareMessage('');
+    setComparisonResult(null);
+    const queryParams = new URLSearchParams(comparisonData).toString();
+    try {
+      const response = await fetch(`${COMPARE_URL}?${queryParams}`);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || 'Comparison failed.');
+      }
+      setComparisonResult(result);
+    } catch (err) {
+      setCompareMessage(`Error: ${err.message}`);
+    } finally {
+      setIsComparing(false);
+    }
+  };
+
+  // --- RENDER ---
 
   return (
-    <div className="w-full max-w-2xl mx-auto">
-      <header className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">Utility Bill Transparency</h1>
-        <p className="text-md text-gray-600 mt-2">Is your electricity bill fair? Enter your details to find out.</p>
-      </header>
-
-      <main className="bg-white rounded-lg shadow-md p-6 sm:p-8">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input name="provider" value={formData.provider} onChange={handleChange} placeholder="Provider (e.g., Adani)" required className="p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"/>
-            <input name="city" value={formData.city} onChange={handleChange} placeholder="City (e.g., Mumbai)" required className="p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"/>
-          </div>
-          <input name="area" value={formData.area} onChange={handleChange} placeholder="Area (e.g., Santacruz)" required className="p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"/>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <input name="unitsConsumed" value={formData.unitsConsumed} onChange={handleChange} placeholder="Units Consumed (kWh)" type="number" required className="p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"/>
-            <input name="totalAmount" value={formData.totalAmount} onChange={handleChange} placeholder="Total Amount (INR)" type="number" required className="p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"/>
-          </div>
-          <input name="billingCycle" value={formData.billingCycle} onChange={handleChange} placeholder="Billing Cycle (YYYY-MM)" type="month" required className="p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"/>
-          
-          <button type="submit" disabled={isLoading} className="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors duration-300">
-            {isLoading ? 'Analyzing...' : 'Submit & Compare'}
+    <div className="space-y-12">
+      {/* Section 1: Add a Bill */}
+      <div className="bg-white p-8 rounded-xl shadow-lg">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">Contribute Your Bill Data</h2>
+        <form onSubmit={handleAddBillSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <input type="text" name="provider" value={newBill.provider} onChange={handleNewBillChange} placeholder="Provider (e.g., Tata Power)" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          <input type="text" name="city" value={newBill.city} onChange={handleNewBillChange} placeholder="City (e.g., Mumbai)" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          <input type="number" name="totalAmount" value={newBill.totalAmount} onChange={handleNewBillChange} placeholder="Total Amount (₹)" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          <input type="number" name="unitsConsumed" value={newBill.unitsConsumed} onChange={handleNewBillChange} placeholder="Units Consumed (kWh)" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" />
+          <input type="date" name="dueDate" value={newBill.dueDate} onChange={handleNewBillChange} required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 md:col-span-2" />
+          <button type="submit" disabled={isSubmitting} className="md:col-span-2 bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-300 disabled:bg-gray-400">
+            {isSubmitting ? 'Submitting...' : 'Add My Bill'}
           </button>
         </form>
+        {addBillMessage && <p className={`mt-4 text-center p-3 rounded-lg ${addBillMessage.startsWith('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{addBillMessage}</p>}
+      </div>
 
-        {message && <p className="text-center mt-4 text-sm font-medium text-red-600">{message}</p>}
-      </main>
-
-      {analysisResult && (
-        <section className="bg-white rounded-lg shadow-md p-6 sm:p-8 mt-8">
-          <h2 className="text-2xl font-bold text-center mb-4">Analysis Results</h2>
-          <div className="text-center space-y-2">
-            <p className="text-lg">Your Cost Per Unit: <strong className="text-indigo-600">₹{analysisResult.userCostPerUnit.toFixed(2)}</strong></p>
-            {analysisResult.comparison ? (
-              <>
-                <p className="text-lg">Average in your city: <strong className="text-green-600">₹{analysisResult.comparison.averageCostPerUnit.toFixed(2)}</strong></p>
-                <p className="text-sm text-gray-500">(Based on {analysisResult.comparison.count} similar bill(s))</p>
-                <div className="w-full h-80 pt-4">
-                  <ResponsiveContainer>
-                    <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => `₹${value}`} />
-                      <Legend />
-                      <Bar dataKey="Your Bill" fill="#4f46e5" />
-                      <Bar dataKey="Average Bill" fill="#16a34a" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
+      {/* Section 2: Compare Your Bill */}
+      <div className="bg-white p-8 rounded-xl shadow-lg">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">Compare Your Bill</h2>
+        <form onSubmit={handleCompareSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <input type="text" name="provider" value={comparisonData.provider} onChange={handleComparisonChange} placeholder="Your Provider" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          <input type="text" name="city" value={comparisonData.city} onChange={handleComparisonChange} placeholder="Your City" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          <input type="number" name="amount" value={comparisonData.amount} onChange={handleComparisonChange} placeholder="Your Bill Amount (₹)" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          <input type="number" name="units" value={comparisonData.units} onChange={handleComparisonChange} placeholder="Your Units Consumed" required className="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+          <button type="submit" disabled={isComparing} className="md:col-span-2 bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition duration-300 disabled:bg-gray-400">
+            {isComparing ? 'Analyzing...' : 'Compare Now'}
+          </button>
+        </form>
+        {compareMessage && <p className="mt-4 text-center p-3 rounded-lg bg-red-100 text-red-700">{compareMessage}</p>}
+        {comparisonResult && (
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-xl font-semibold text-gray-700 mb-3">Analysis Complete:</h3>
+            <p className="text-lg">Your cost per unit: <span className="font-bold text-blue-600">₹{comparisonResult.userCostPerUnit.toFixed(2)}</span></p>
+            {comparisonResult.comparison ? (
+              <div className="mt-2 space-y-1">
+                <p>For {comparisonResult.comparison.count} other bills in your area:</p>
+                <p>The average cost per unit is <span className="font-bold">₹{comparisonResult.comparison.averageCostPerUnit.toFixed(2)}</span>.</p>
+                <p>The lowest cost per unit was <span className="font-bold text-green-600">₹{comparisonResult.comparison.minCostPerUnit.toFixed(2)}</span>.</p>
+                <p>The highest cost per unit was <span className="font-bold text-red-600">₹{comparisonResult.comparison.maxCostPerUnit.toFixed(2)}</span>.</p>
+              </div>
             ) : (
-              <p className="text-gray-600 mt-4">Could not find enough similar bills to create a comparison.</p>
+              <p className="mt-2">{comparisonResult.message}</p>
             )}
           </div>
-        </section>
-      )}
+        )}
+      </div>
     </div>
   );
 }

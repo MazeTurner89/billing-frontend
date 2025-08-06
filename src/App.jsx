@@ -1,33 +1,34 @@
+// ===================================================================================
+// FILE: src/App.jsx (FINAL)
+// ===================================================================================
 import { useState } from 'react';
 import Navbar from './components/Navbar';
 import HomePage from './components/HomePage';
 import ExplorerPage from './components/ExplorerPage';
 import AboutPage from './components/AboutPage';
+import Footer from './components/Footer';
 
 function App() {
-  // This state variable will control which page is currently visible.
   const [currentPage, setCurrentPage] = useState('home');
 
-  // This function will render the correct page component based on the state.
   const renderPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return <HomePage />;
-      case 'explorer':
-        return <ExplorerPage />;
-      case 'about':
-        return <AboutPage />;
-      default:
-        return <HomePage />;
+    if (currentPage === 'explorer') {
+      return <ExplorerPage />;
     }
+    if (currentPage === 'about') {
+      return <AboutPage />;
+    }
+    // Default to home page
+    return <HomePage />;
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <Navbar setPage={setCurrentPage} />
-      <main className="p-4 sm:p-6 md:p-8">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      <Navbar page={currentPage} setPage={setCurrentPage} />
+      <main className="flex-grow p-4 sm:p-6 md:p-10">
         {renderPage()}
       </main>
+      <Footer />
     </div>
   );
 }
